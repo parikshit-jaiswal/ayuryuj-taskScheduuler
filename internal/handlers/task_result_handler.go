@@ -1,4 +1,4 @@
-package handlers
+﻿package handlers
 
 import (
 	"encoding/json"
@@ -12,23 +12,19 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskResultHandler handles task result-related HTTP requests
 type TaskResultHandler struct {
 	taskResultService *services.TaskResultService
 }
 
-// NewTaskResultHandler creates a new task result handler
 func NewTaskResultHandler(taskResultService *services.TaskResultService) *TaskResultHandler {
 	return &TaskResultHandler{
 		taskResultService: taskResultService,
 	}
 }
 
-// ListResults handles GET /results
 func (h *TaskResultHandler) ListResults(w http.ResponseWriter, r *http.Request) {
 	var filter models.TaskResultFilter
 
-	// Parse query parameters
 	if taskID := r.URL.Query().Get("task_id"); taskID != "" {
 		if id, err := uuid.Parse(taskID); err == nil {
 			filter.TaskID = &id

@@ -1,4 +1,4 @@
-package server
+﻿package server
 
 import (
 	"fmt"
@@ -28,27 +28,21 @@ type Server struct {
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 
-	// Initialize database
 	db := database.New()
 
-	// Run migrations
 	if err := db.RunMigrations(); err != nil {
 		log.Printf("Failed to run migrations: %v", err)
 	}
 
-	// Initialize repositories
 	taskRepo := repository.NewTaskRepository(db.GetDB())
 	taskResultRepo := repository.NewTaskResultRepository(db.GetDB())
 
-	// Initialize services
 	taskService := services.NewTaskService(taskRepo)
 	taskResultService := services.NewTaskResultService(taskResultRepo)
 	httpExecutor := services.NewHTTPExecutorService()
 
-	// Initialize scheduler
 	taskScheduler := scheduler.NewScheduler(taskService, taskResultService, httpExecutor)
 
-	// Create server
 	newServer := &Server{
 		port:              port,
 		db:                db,
@@ -58,10 +52,8 @@ func NewServer() *http.Server {
 		scheduler:         taskScheduler,
 	}
 
-	// Start scheduler
 	taskScheduler.Start()
 
-	// Declare Server config
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", newServer.port),
 		Handler:      newServer.RegisterRoutes(),
@@ -73,7 +65,6 @@ func NewServer() *http.Server {
 	return server
 }
 
-// Shutdown gracefully shuts down the server
 func (s *Server) Shutdown() {
 	if s.scheduler != nil {
 		s.scheduler.Stop()

@@ -1,4 +1,4 @@
-package services
+﻿package services
 
 import (
 	"fmt"
@@ -11,26 +11,21 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// TaskService handles business logic for tasks
 type TaskService struct {
 	taskRepo *repository.TaskRepository
 }
 
-// NewTaskService creates a new task service
 func NewTaskService(taskRepo *repository.TaskRepository) *TaskService {
 	return &TaskService{
 		taskRepo: taskRepo,
 	}
 }
 
-// CreateTask creates a new task
 func (s *TaskService) CreateTask(req models.CreateTaskRequest) (*models.Task, error) {
-	// Validate trigger
 	if err := s.validateTrigger(req.Trigger); err != nil {
 		return nil, fmt.Errorf("invalid trigger: %w", err)
 	}
 
-	// Create task
 	task := &models.Task{
 		ID:        uuid.New(),
 		Name:      req.Name,
@@ -41,14 +36,12 @@ func (s *TaskService) CreateTask(req models.CreateTaskRequest) (*models.Task, er
 		UpdatedAt: time.Now(),
 	}
 
-	// Set next run time
 	nextRun, err := s.calculateNextRun(req.Trigger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate next run: %w", err)
 	}
 	task.NextRun = nextRun
 
-	// Save to database
 	if err := s.taskRepo.Create(task); err != nil {
 		return nil, fmt.Errorf("failed to create task: %w", err)
 	}
@@ -56,7 +49,6 @@ func (s *TaskService) CreateTask(req models.CreateTaskRequest) (*models.Task, er
 	return task, nil
 }
 
-// GetTask retrieves a task by ID
 func (s *TaskService) GetTask(id uuid.UUID) (*models.Task, error) {
 	task, err := s.taskRepo.GetByID(id)
 	if err != nil {
@@ -68,9 +60,7 @@ func (s *TaskService) GetTask(id uuid.UUID) (*models.Task, error) {
 	return task, nil
 }
 
-// ListTasks lists tasks with filtering and pagination
 func (s *TaskService) ListTasks(filter models.TaskFilter) (*models.TaskListResponse, error) {
-	// Set defaults
 	if filter.Page <= 0 {
 		filter.Page = 1
 	}
@@ -94,9 +84,7 @@ func (s *TaskService) ListTasks(filter models.TaskFilter) (*models.TaskListRespo
 	}, nil
 }
 
-// UpdateTask updates a task
 func (s *TaskService) UpdateTask(id uuid.UUID, req models.UpdateTaskRequest) (*models.Task, error) {
-	// Get existing task
 	task, err := s.taskRepo.GetByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task: %w", err)
@@ -105,7 +93,6 @@ func (s *TaskService) UpdateTask(id uuid.UUID, req models.UpdateTaskRequest) (*m
 		return nil, fmt.Errorf("task not found")
 	}
 
-	// Update fields if provided
 	if req.Name != nil {
 		task.Name = *req.Name
 	}
@@ -115,7 +102,6 @@ func (s *TaskService) UpdateTask(id uuid.UUID, req models.UpdateTaskRequest) (*m
 		}
 		task.Trigger = *req.Trigger
 
-		// Recalculate next run
 		nextRun, err := s.calculateNextRun(*req.Trigger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate next run: %w", err)
@@ -128,7 +114,6 @@ func (s *TaskService) UpdateTask(id uuid.UUID, req models.UpdateTaskRequest) (*m
 
 	task.UpdatedAt = time.Now()
 
-	// Save changes
 	if err := s.taskRepo.Update(task); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
@@ -136,7 +121,6 @@ func (s *TaskService) UpdateTask(id uuid.UUID, req models.UpdateTaskRequest) (*m
 	return task, nil
 }
 
-// DeleteTask soft deletes a task
 func (s *TaskService) DeleteTask(id uuid.UUID) error {
 	if err := s.taskRepo.Delete(id); err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
@@ -144,7 +128,6 @@ func (s *TaskService) DeleteTask(id uuid.UUID) error {
 	return nil
 }
 
-// GetScheduledTasks retrieves tasks that are ready to run
 func (s *TaskService) GetScheduledTasks() ([]models.Task, error) {
 	tasks, err := s.taskRepo.GetScheduledTasks()
 	if err != nil {
@@ -153,7 +136,6 @@ func (s *TaskService) GetScheduledTasks() ([]models.Task, error) {
 	return tasks, nil
 }
 
-// UpdateTaskNextRun updates the next run time for a task
 func (s *TaskService) UpdateTaskNextRun(taskID uuid.UUID, nextRun *time.Time) error {
 	task, err := s.taskRepo.GetByID(taskID)
 	if err != nil {
@@ -169,7 +151,6 @@ func (s *TaskService) UpdateTaskNextRun(taskID uuid.UUID, nextRun *time.Time) er
 	return s.taskRepo.Update(task)
 }
 
-// MarkTaskCompleted marks a one-off task as completed
 func (s *TaskService) MarkTaskCompleted(taskID uuid.UUID) error {
 	task, err := s.taskRepo.GetByID(taskID)
 	if err != nil {
@@ -179,7 +160,6 @@ func (s *TaskService) MarkTaskCompleted(taskID uuid.UUID) error {
 		return fmt.Errorf("task not found")
 	}
 
-	// Only mark one-off tasks as completed
 	if task.Trigger.Type == models.TriggerTypeOneOff {
 		task.Status = models.TaskStatusCompleted
 		task.NextRun = nil
@@ -190,7 +170,6 @@ func (s *TaskService) MarkTaskCompleted(taskID uuid.UUID) error {
 	return nil
 }
 
-// validateTrigger validates the trigger configuration
 func (s *TaskService) validateTrigger(trigger models.Trigger) error {
 	switch trigger.Type {
 	case models.TriggerTypeOneOff:
@@ -204,7 +183,6 @@ func (s *TaskService) validateTrigger(trigger models.Trigger) error {
 		if trigger.Cron == "" {
 			return fmt.Errorf("cron expression is required for cron triggers")
 		}
-		// Validate cron expression
 		_, err := cron.ParseStandard(trigger.Cron)
 		if err != nil {
 			return fmt.Errorf("invalid cron expression: %w", err)
@@ -215,7 +193,6 @@ func (s *TaskService) validateTrigger(trigger models.Trigger) error {
 	return nil
 }
 
-// calculateNextRun calculates the next run time for a trigger
 func (s *TaskService) calculateNextRun(trigger models.Trigger) (*time.Time, error) {
 	switch trigger.Type {
 	case models.TriggerTypeOneOff:

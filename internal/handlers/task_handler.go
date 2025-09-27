@@ -1,4 +1,4 @@
-package handlers
+﻿package handlers
 
 import (
 	"encoding/json"
@@ -12,13 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskHandler handles task-related HTTP requests
 type TaskHandler struct {
 	taskService       *services.TaskService
 	taskResultService *services.TaskResultService
 }
 
-// NewTaskHandler creates a new task handler
 func NewTaskHandler(taskService *services.TaskService, taskResultService *services.TaskResultService) *TaskHandler {
 	return &TaskHandler{
 		taskService:       taskService,
@@ -26,7 +24,6 @@ func NewTaskHandler(taskService *services.TaskService, taskResultService *servic
 	}
 }
 
-// CreateTask handles POST /tasks
 func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateTaskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -44,7 +41,6 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
-// GetTask handles GET /tasks/{id}
 func (h *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
@@ -65,11 +61,9 @@ func (h *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
-// ListTasks handles GET /tasks
 func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	var filter models.TaskFilter
 
-	// Parse query parameters
 	if status := r.URL.Query().Get("status"); status != "" {
 		filter.Status = models.TaskStatus(status)
 	}
@@ -95,7 +89,6 @@ func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// UpdateTask handles PUT /tasks/{id}
 func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
@@ -122,7 +115,6 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
-// DeleteTask handles DELETE /tasks/{id}
 func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
@@ -143,7 +135,6 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetTaskResults handles GET /tasks/{id}/results
 func (h *TaskHandler) GetTaskResults(w http.ResponseWriter, r *http.Request) {
 	taskID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
@@ -153,7 +144,6 @@ func (h *TaskHandler) GetTaskResults(w http.ResponseWriter, r *http.Request) {
 
 	var filter models.TaskResultFilter
 
-	// Parse query parameters
 	if success := r.URL.Query().Get("success"); success != "" {
 		if s, err := strconv.ParseBool(success); err == nil {
 			filter.Success = &s

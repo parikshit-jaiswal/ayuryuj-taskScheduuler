@@ -1,4 +1,4 @@
-package models
+﻿package models
 
 import (
 	"database/sql/driver"
@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskResult represents the result of a task execution
 type TaskResult struct {
 	ID              uuid.UUID       `json:"id" db:"id"`
 	TaskID          uuid.UUID       `json:"task_id" db:"task_id"`
@@ -22,7 +21,6 @@ type TaskResult struct {
 	CreatedAt       time.Time       `json:"created_at" db:"created_at"`
 }
 
-// TaskResultListResponse represents the response for listing task results
 type TaskResultListResponse struct {
 	Results    []TaskResult `json:"results"`
 	Total      int          `json:"total"`
@@ -31,7 +29,6 @@ type TaskResultListResponse struct {
 	TotalPages int          `json:"total_pages"`
 }
 
-// TaskResultFilter represents filters for task result listing
 type TaskResultFilter struct {
 	TaskID   *uuid.UUID `json:"task_id,omitempty"`
 	Success  *bool      `json:"success,omitempty"`
@@ -41,10 +38,8 @@ type TaskResultFilter struct {
 	PageSize int        `json:"page_size"`
 }
 
-// HTTPHeaders is a custom type for HTTP headers
 type HTTPHeaders map[string]string
 
-// Value implements driver.Valuer interface for database storage
 func (h HTTPHeaders) Value() (driver.Value, error) {
 	if h == nil {
 		return nil, nil
@@ -52,7 +47,6 @@ func (h HTTPHeaders) Value() (driver.Value, error) {
 	return json.Marshal(h)
 }
 
-// Scan implements sql.Scanner interface for database retrieval
 func (h *HTTPHeaders) Scan(value interface{}) error {
 	if value == nil {
 		return nil

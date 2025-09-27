@@ -1,4 +1,4 @@
-package repository
+﻿package repository
 
 import (
 	"database/sql"
@@ -11,17 +11,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskRepository handles database operations for tasks
 type TaskRepository struct {
 	db *sql.DB
 }
 
-// NewTaskRepository creates a new task repository
 func NewTaskRepository(db *sql.DB) *TaskRepository {
 	return &TaskRepository{db: db}
 }
 
-// Create creates a new task
 func (r *TaskRepository) Create(task *models.Task) error {
 	query := `
 		INSERT INTO tasks (id, name, trigger, action, status, created_at, updated_at, next_run)
@@ -42,7 +39,6 @@ func (r *TaskRepository) Create(task *models.Task) error {
 	return err
 }
 
-// GetByID retrieves a task by its ID
 func (r *TaskRepository) GetByID(id uuid.UUID) (*models.Task, error) {
 	query := `
 		SELECT id, name, trigger, action, status, created_at, updated_at, next_run
@@ -69,9 +65,7 @@ func (r *TaskRepository) GetByID(id uuid.UUID) (*models.Task, error) {
 	return task, err
 }
 
-// List retrieves tasks with filtering and pagination
 func (r *TaskRepository) List(filter models.TaskFilter) ([]models.Task, int, error) {
-	// Build the WHERE clause
 	whereClauses := []string{}
 	args := []interface{}{}
 	argIndex := 1
@@ -87,7 +81,6 @@ func (r *TaskRepository) List(filter models.TaskFilter) ([]models.Task, int, err
 		whereClause = "WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
-	// Count total records
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM tasks %s", whereClause)
 	var total int
 	err := r.db.QueryRow(countQuery, args...).Scan(&total)
@@ -95,10 +88,8 @@ func (r *TaskRepository) List(filter models.TaskFilter) ([]models.Task, int, err
 		return nil, 0, err
 	}
 
-	// Calculate offset
 	offset := (filter.Page - 1) * filter.PageSize
 
-	// Get tasks with pagination
 	query := fmt.Sprintf(`
 		SELECT id, name, trigger, action, status, created_at, updated_at, next_run
 		FROM tasks %s
@@ -136,7 +127,6 @@ func (r *TaskRepository) List(filter models.TaskFilter) ([]models.Task, int, err
 	return tasks, total, rows.Err()
 }
 
-// Update updates a task
 func (r *TaskRepository) Update(task *models.Task) error {
 	query := `
 		UPDATE tasks
@@ -170,7 +160,6 @@ func (r *TaskRepository) Update(task *models.Task) error {
 	return nil
 }
 
-// Delete soft deletes a task (sets status to cancelled)
 func (r *TaskRepository) Delete(id uuid.UUID) error {
 	query := `
 		UPDATE tasks
@@ -195,7 +184,6 @@ func (r *TaskRepository) Delete(id uuid.UUID) error {
 	return nil
 }
 
-// GetScheduledTasks retrieves tasks that are ready to run
 func (r *TaskRepository) GetScheduledTasks() ([]models.Task, error) {
 	query := `
 		SELECT id, name, trigger, action, status, created_at, updated_at, next_run

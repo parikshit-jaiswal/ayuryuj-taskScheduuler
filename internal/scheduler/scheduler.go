@@ -1,4 +1,4 @@
-package scheduler
+﻿package scheduler
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// Scheduler handles task scheduling and execution
 type Scheduler struct {
 	taskService       *services.TaskService
 	taskResultService *services.TaskResultService
@@ -27,7 +26,6 @@ type Scheduler struct {
 	checkInterval     time.Duration
 }
 
-// NewScheduler creates a new scheduler
 func NewScheduler(
 	taskService *services.TaskService,
 	taskResultService *services.TaskResultService,
@@ -40,11 +38,10 @@ func NewScheduler(
 		httpExecutor:      httpExecutor,
 		ctx:               ctx,
 		cancel:            cancel,
-		checkInterval:     10 * time.Second, // Check for scheduled tasks every 10 seconds
+		checkInterval:     10 * time.Second,
 	}
 }
 
-// Start starts the scheduler
 func (s *Scheduler) Start() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -62,7 +59,6 @@ func (s *Scheduler) Start() {
 	log.Println("Task scheduler started")
 }
 
-// Stop stops the scheduler
 func (s *Scheduler) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -82,14 +78,12 @@ func (s *Scheduler) Stop() {
 	log.Println("Task scheduler stopped")
 }
 
-// IsRunning returns whether the scheduler is running
 func (s *Scheduler) IsRunning() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.running
 }
 
-// run is the main scheduler loop
 func (s *Scheduler) run() {
 	defer s.wg.Done()
 
@@ -103,7 +97,6 @@ func (s *Scheduler) run() {
 	}
 }
 
-// processPendingTasks checks for and executes scheduled tasks
 func (s *Scheduler) processPendingTasks() {
 	tasks, err := s.taskService.GetScheduledTasks()
 	if err != nil {
@@ -112,24 +105,19 @@ func (s *Scheduler) processPendingTasks() {
 	}
 
 	for _, task := range tasks {
-		// Execute task in a separate goroutine to avoid blocking
 		go s.executeTask(task)
 	}
 }
 
-// executeTask executes a single task
 func (s *Scheduler) executeTask(task models.Task) {
 	log.Printf("Executing task: %s (ID: %s)", task.Name, task.ID)
 
-	// Execute the HTTP request
 	result := s.httpExecutor.ExecuteTask(task)
 
-	// Save the result
 	if err := s.taskResultService.CreateTaskResult(result); err != nil {
 		log.Printf("Error saving task result for task %s: %v", task.ID, err)
 	}
 
-	// Update task based on trigger type
 	if err := s.updateTaskAfterExecution(task); err != nil {
 		log.Printf("Error updating task after execution %s: %v", task.ID, err)
 	}
@@ -149,26 +137,21 @@ func (s *Scheduler) executeTask(task models.Task) {
 	}
 }
 
-// updateTaskAfterExecution updates the task after execution based on its trigger type
 func (s *Scheduler) updateTaskAfterExecution(task models.Task) error {
 	switch task.Trigger.Type {
 	case models.TriggerTypeOneOff:
-		// Mark one-off tasks as completed
 		return s.taskService.MarkTaskCompleted(task.ID)
 	case models.TriggerTypeCron:
-		// Calculate next run time for cron tasks
 		return s.updateCronTaskNextRun(task)
 	}
 	return nil
 }
 
-// updateCronTaskNextRun calculates and updates the next run time for cron tasks
 func (s *Scheduler) updateCronTaskNextRun(task models.Task) error {
 	if task.Trigger.Type != models.TriggerTypeCron {
 		return nil
 	}
 
-	// Parse the cron expression and calculate next run
 	schedule, err := cron.ParseStandard(task.Trigger.Cron)
 	if err != nil {
 		return fmt.Errorf("failed to parse cron expression: %w", err)

@@ -1,4 +1,4 @@
-package repository
+﻿package repository
 
 import (
 	"database/sql"
@@ -10,17 +10,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskResultRepository handles database operations for task results
 type TaskResultRepository struct {
 	db *sql.DB
 }
 
-// NewTaskResultRepository creates a new task result repository
 func NewTaskResultRepository(db *sql.DB) *TaskResultRepository {
 	return &TaskResultRepository{db: db}
 }
 
-// Create creates a new task result
 func (r *TaskResultRepository) Create(result *models.TaskResult) error {
 	query := `
 		INSERT INTO task_results (id, task_id, run_at, status_code, success, response_headers, response_body, error_message, duration_ms, created_at)
@@ -43,7 +40,6 @@ func (r *TaskResultRepository) Create(result *models.TaskResult) error {
 	return err
 }
 
-// GetByID retrieves a task result by its ID
 func (r *TaskResultRepository) GetByID(id uuid.UUID) (*models.TaskResult, error) {
 	query := `
 		SELECT id, task_id, run_at, status_code, success, response_headers, response_body, error_message, duration_ms, created_at
@@ -72,9 +68,7 @@ func (r *TaskResultRepository) GetByID(id uuid.UUID) (*models.TaskResult, error)
 	return result, err
 }
 
-// ListByTaskID retrieves task results for a specific task with pagination
 func (r *TaskResultRepository) ListByTaskID(taskID uuid.UUID, filter models.TaskResultFilter) ([]models.TaskResult, int, error) {
-	// Build the WHERE clause
 	whereClauses := []string{"task_id = $1"}
 	args := []interface{}{taskID}
 	argIndex := 2
@@ -99,7 +93,6 @@ func (r *TaskResultRepository) ListByTaskID(taskID uuid.UUID, filter models.Task
 
 	whereClause := "WHERE " + strings.Join(whereClauses, " AND ")
 
-	// Count total records
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM task_results %s", whereClause)
 	var total int
 	err := r.db.QueryRow(countQuery, args...).Scan(&total)
@@ -107,10 +100,8 @@ func (r *TaskResultRepository) ListByTaskID(taskID uuid.UUID, filter models.Task
 		return nil, 0, err
 	}
 
-	// Calculate offset
 	offset := (filter.Page - 1) * filter.PageSize
 
-	// Get results with pagination
 	query := fmt.Sprintf(`
 		SELECT id, task_id, run_at, status_code, success, response_headers, response_body, error_message, duration_ms, created_at
 		FROM task_results %s
@@ -150,9 +141,7 @@ func (r *TaskResultRepository) ListByTaskID(taskID uuid.UUID, filter models.Task
 	return results, total, rows.Err()
 }
 
-// List retrieves all task results with filtering and pagination
 func (r *TaskResultRepository) List(filter models.TaskResultFilter) ([]models.TaskResult, int, error) {
-	// Build the WHERE clause
 	whereClauses := []string{}
 	args := []interface{}{}
 	argIndex := 1
@@ -186,7 +175,6 @@ func (r *TaskResultRepository) List(filter models.TaskResultFilter) ([]models.Ta
 		whereClause = "WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
-	// Count total records
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM task_results %s", whereClause)
 	var total int
 	err := r.db.QueryRow(countQuery, args...).Scan(&total)
@@ -194,10 +182,8 @@ func (r *TaskResultRepository) List(filter models.TaskResultFilter) ([]models.Ta
 		return nil, 0, err
 	}
 
-	// Calculate offset
 	offset := (filter.Page - 1) * filter.PageSize
 
-	// Get results with pagination
 	query := fmt.Sprintf(`
 		SELECT id, task_id, run_at, status_code, success, response_headers, response_body, error_message, duration_ms, created_at
 		FROM task_results %s
