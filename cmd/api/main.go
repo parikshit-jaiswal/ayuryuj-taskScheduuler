@@ -49,4 +49,5 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	log.Println("Server exiting")
 
 	done <- true
+	
 }
