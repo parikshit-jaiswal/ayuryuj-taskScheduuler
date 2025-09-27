@@ -9,6 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -16,12 +19,13 @@ import (
 // Service represents a service that interacts with a database.
 type Service interface {
 	// Health returns a map of health status information.
-	// The keys and values in the map are service-specific.
 	Health() map[string]string
-
-	// Close terminates the database connection.
-	// It returns an error if the connection cannot be closed.
+	// Close closes the database connection.
 	Close() error
+	// GetDB returns the underlying database connection
+	GetDB() *sql.DB
+	// RunMigrations runs database migrations
+	RunMigrations() error
 }
 
 type service struct {
@@ -112,4 +116,31 @@ func (s *service) Health() map[string]string {
 func (s *service) Close() error {
 	log.Printf("Disconnected from database: %s", database)
 	return s.db.Close()
+}
+
+// GetDB returns the underlying database connection
+func (s *service) GetDB() *sql.DB {
+	return s.db
+}
+
+// RunMigrations runs database migrations
+func (s *service) RunMigrations() error {
+	driver, err := postgres.WithInstance(s.db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("could not create postgres driver: %v", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migrations",
+		"postgres", driver)
+	if err != nil {
+		return fmt.Errorf("could not create migrate instance: %v", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("could not run migrations: %v", err)
+	}
+
+	log.Println("Database migrations completed successfully")
+	return nil
 }

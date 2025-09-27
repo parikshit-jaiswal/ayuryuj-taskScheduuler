@@ -6,7 +6,7 @@ services:
       target: prod
     restart: unless-stopped
     ports:
-      - ${PORT}:${PORT}
+      - "${PORT}:${PORT}"
     environment:
       APP_ENV: ${APP_ENV}
       PORT: ${PORT}
@@ -20,9 +20,10 @@ services:
       psql_bp:
         condition: service_healthy
     networks:
-      - blueprint
+      - taskscheduler
+
   psql_bp:
-    image: postgres:latest
+    image: postgres:15-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${BLUEPRINT_DB_DATABASE}
@@ -31,17 +32,20 @@ services:
     ports:
       - "${BLUEPRINT_DB_PORT}:5432"
     volumes:
-      - psql_volume_bp:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d/
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE}'"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE}"]
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 30s
     networks:
-      - blueprint
+      - taskscheduler
 
 volumes:
-  psql_volume_bp:
+  postgres_data:
+
 networks:
-  blueprint:
+  taskscheduler:
+    driver: bridge

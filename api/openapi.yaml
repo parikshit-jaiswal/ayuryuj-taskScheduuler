@@ -1,0 +1,488 @@
+openapi: 3.0.3
+info:
+  title: Task Scheduler API
+  description: |
+    A RESTful Task Scheduler Service that manages HTTP tasks which can be scheduled (one-off or recurring) 
+    and reliably executed. All tasks and their results are persistently stored in PostgreSQL.
+  version: 1.0.0
+  contact:
+    name: Task Scheduler API Support
+    email: support@taskscheduler.com
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Check the health status of the service and database
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "up"
+                  message:
+                    type: string
+                    example: "It's healthy"
+
+  /metrics:
+    get:
+      summary: Service Metrics
+      description: Get basic service metrics
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Service metrics
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /tasks:
+    post:
+      summary: Create Task
+      description: Create a new scheduled task
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Invalid request
+
+    get:
+      summary: List Tasks
+      description: List all tasks with optional filtering and pagination
+      operationId: listTasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, cancelled, completed]
+          description: Filter by task status
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+
+  /tasks/{id}:
+    get:
+      summary: Get Task
+      description: Get a specific task by ID
+      operationId: getTask
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Task ID
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+
+    put:
+      summary: Update Task
+      description: Update an existing task
+      operationId: updateTask
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Task ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Invalid request
+        '404':
+          description: Task not found
+
+    delete:
+      summary: Cancel Task
+      description: Cancel a task (soft delete - sets status to cancelled)
+      operationId: cancelTask
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Task ID
+      responses:
+        '204':
+          description: Task cancelled successfully
+        '404':
+          description: Task not found
+
+  /tasks/{id}/results:
+    get:
+      summary: Get Task Results
+      description: Get execution results for a specific task
+      operationId: getTaskResults
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Task ID
+        - name: success
+          in: query
+          schema:
+            type: boolean
+          description: Filter by success status
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter results from this date (ISO 8601)
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter results to this date (ISO 8601)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of task results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResultListResponse'
+
+  /results:
+    get:
+      summary: List All Results
+      description: List all task execution results with optional filtering
+      operationId: listAllResults
+      parameters:
+        - name: task_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by task ID
+        - name: success
+          in: query
+          schema:
+            type: boolean
+          description: Filter by success status
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter results from this date (ISO 8601)
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter results to this date (ISO 8601)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of task results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResultListResponse'
+
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - name
+        - trigger
+        - action
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "Daily Health Check"
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+        action:
+          $ref: '#/components/schemas/Action'
+        status:
+          type: string
+          enum: [scheduled, cancelled, completed]
+          example: "scheduled"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-09-27T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-09-27T10:00:00Z"
+        next_run:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-09-28T10:00:00Z"
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - name
+        - trigger
+        - action
+      properties:
+        name:
+          type: string
+          example: "Daily Health Check"
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+        action:
+          $ref: '#/components/schemas/Action'
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Updated Task Name"
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+        action:
+          $ref: '#/components/schemas/Action'
+
+    Trigger:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [one-off, cron]
+          example: "cron"
+        datetime:
+          type: string
+          format: date-time
+          description: Required for one-off triggers
+          example: "2025-09-28T10:00:00Z"
+        cron:
+          type: string
+          description: Required for cron triggers (standard cron expression)
+          example: "0 9 * * 1-5"
+
+    Action:
+      type: object
+      required:
+        - method
+        - url
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS]
+          example: "GET"
+        url:
+          type: string
+          format: uri
+          example: "https://api.example.com/health"
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            Authorization: "Bearer token123"
+            Content-Type: "application/json"
+        payload:
+          type: object
+          description: JSON payload for POST/PUT requests
+          example:
+            message: "Hello World"
+
+    TaskResult:
+      type: object
+      required:
+        - id
+        - task_id
+        - run_at
+        - status_code
+        - success
+        - duration_ms
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "c27493e8-1234-5678-9abc-def012345678"
+        task_id:
+          type: string
+          format: uuid
+          example: "a2349de4-1234-5678-9abc-def012345678"
+        run_at:
+          type: string
+          format: date-time
+          example: "2025-07-01T10:00:00Z"
+        status_code:
+          type: integer
+          example: 200
+        success:
+          type: boolean
+          example: true
+        response_headers:
+          type: object
+          example:
+            Content-Type: "application/json"
+        response_body:
+          type: string
+          example: '{"message":"ok"}'
+        error_message:
+          type: string
+          nullable: true
+          example: null
+        duration_ms:
+          type: integer
+          example: 233
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-07-01T10:00:00Z"
+
+    TaskListResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        total_pages:
+          type: integer
+          example: 5
+
+    TaskResultListResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResult'
+        total:
+          type: integer
+          example: 50
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        total_pages:
+          type: integer
+          example: 3
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Invalid request"

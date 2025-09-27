@@ -1,63 +1,41 @@
 package server
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
+
+	"ayuryuj-task/internal/handlers"
+	"ayuryuj-task/internal/middleware"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
+	// Create handlers
+	taskHandler := handlers.NewTaskHandler(s.taskService, s.taskResultService)
+	taskResultHandler := handlers.NewTaskResultHandler(s.taskResultService)
+	healthHandler := handlers.NewHealthHandler(s.db)
+
+	// Create router
 	mux := http.NewServeMux()
 
-	// Register routes
-	mux.HandleFunc("/", s.HelloWorldHandler)
+	// Health endpoints
+	mux.HandleFunc("GET /health", healthHandler.Health)
+	mux.HandleFunc("GET /metrics", healthHandler.Metrics)
 
-	mux.HandleFunc("/health", s.healthHandler)
+	// Task endpoints
+	mux.HandleFunc("POST /tasks", taskHandler.CreateTask)
+	mux.HandleFunc("GET /tasks", taskHandler.ListTasks)
+	mux.HandleFunc("GET /tasks/{id}", taskHandler.GetTask)
+	mux.HandleFunc("PUT /tasks/{id}", taskHandler.UpdateTask)
+	mux.HandleFunc("DELETE /tasks/{id}", taskHandler.DeleteTask)
+	mux.HandleFunc("GET /tasks/{id}/results", taskHandler.GetTaskResults)
 
-	// Wrap the mux with CORS middleware
-	return s.corsMiddleware(mux)
-}
+	// Task results endpoints
+	mux.HandleFunc("GET /results", taskResultHandler.ListResults)
 
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*") // Replace "*" with specific origins if needed
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
-		w.Header().Set("Access-Control-Allow-Credentials", "false") // Set to "true" if credentials are required
+	// Apply middleware
+	var handler http.Handler = mux
+	handler = middleware.LoggingMiddleware(handler)
+	handler = middleware.CORSMiddleware(handler)
+	handler = middleware.JSONMiddleware(handler)
 
-		// Handle preflight OPTIONS requests
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		// Proceed with the next handler
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
-	resp := map[string]string{"message": "Hello World"}
-	jsonResp, err := json.Marshal(resp)
-	if err != nil {
-		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write(jsonResp); err != nil {
-		log.Printf("Failed to write response: %v", err)
-	}
-}
-
-func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
-	resp, err := json.Marshal(s.db.Health())
-	if err != nil {
-		http.Error(w, "Failed to marshal health check response", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write(resp); err != nil {
-		log.Printf("Failed to write response: %v", err)
-	}
+	return handler
 }
